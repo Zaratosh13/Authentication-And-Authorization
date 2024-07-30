@@ -33,14 +33,14 @@ namespace Authentication_And_Authorization.Controllers
         public async Task<IActionResult> ChangePassword(ChangePassword changePassword)
         {
             var status = new Status();
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)  // Fixed the condition here, it should be '!ModelState.IsValid'
             {
                 status.StatusCode = 0;
-                status.Message = "Please all the fields!";
+                status.Message = "Please fill all the fields!";
                 return Ok(status);
             }
 
-            //Lets find the user
+            // Let's find the user
             var user = await _userManager.FindByNameAsync(changePassword.Username);
             if (user == null)
             {
@@ -49,7 +49,7 @@ namespace Authentication_And_Authorization.Controllers
                 return Ok(status);
             }
 
-            //Check current password
+            // Check current password
             if (!await _userManager.CheckPasswordAsync(user, changePassword.CurrentPassword))
             {
                 status.StatusCode = 0;
@@ -57,17 +57,17 @@ namespace Authentication_And_Authorization.Controllers
                 return Ok(status);
             }
 
-            //Change password
-            var reuslt = await _userManager.ChangePasswordAsync(user, changePassword.CurrentPassword, changePassword.NewPassword);
-            if (!reuslt.Succeeded)
+            // Change password
+            var result = await _userManager.ChangePasswordAsync(user, changePassword.CurrentPassword, changePassword.NewPassword);
+            if (!result.Succeeded)
             {
                 status.StatusCode = 0;
                 status.Message = "Failed to change password";
                 return Ok(status);
             }
-            status.StatusCode = 0;
+            status.StatusCode = 1;  // Changed to 1 to indicate success
             status.Message = "Password has changed Successfully!";
-            return Ok(reuslt);
+            return Ok(status);
         }
 
         [HttpPost]
@@ -80,10 +80,10 @@ namespace Authentication_And_Authorization.Controllers
                 var userRoles = await _userManager.GetRolesAsync(user);
 
                 var authClaims = new List<Claim>
-                    {
-                        new Claim(ClaimTypes.Name, user.UserName),
-                        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                    };
+                {
+                    new Claim(ClaimTypes.Name, user.UserName),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                };
 
                 foreach (var userRole in userRoles)
                 {
@@ -92,9 +92,9 @@ namespace Authentication_And_Authorization.Controllers
 
                 var token = _tokenService.GetToken(authClaims);
                 var refreshToken = _tokenService.GetRefreshToken();
-                var TokenInfo = _context.TokenInfo.FirstOrDefault(a => a.Username == user.UserName);
+                var tokenInfo = _context.TokenInfo.FirstOrDefault(a => a.Username == user.UserName);
 
-                if (TokenInfo == null)
+                if (tokenInfo == null)
                 {
                     var info = new TokenInfo
                     {
@@ -106,8 +106,8 @@ namespace Authentication_And_Authorization.Controllers
                 }
                 else
                 {
-                    TokenInfo.RefreshToken = refreshToken;
-                    TokenInfo.RefreshTokenExpiry = DateTime.Now.AddDays(7);
+                    tokenInfo.RefreshToken = refreshToken;
+                    tokenInfo.RefreshTokenExpiry = DateTime.Now.AddDays(7);
                 }
 
                 _context.SaveChanges();
@@ -123,8 +123,7 @@ namespace Authentication_And_Authorization.Controllers
                     Message = "Logged in!"
                 });
             }
-            return Ok(
-            new LoginResponse
+            return Ok(new LoginResponse
             {
                 StatusCode = 0,
                 Message = "Invalid Username or Password",
@@ -144,12 +143,12 @@ namespace Authentication_And_Authorization.Controllers
                 return Ok(status);
             }
 
-            //check of user exist
+            // Check if user exists
             var userExist = await _userManager.FindByNameAsync(registration.Username);
             if (userExist != null)
             {
                 status.StatusCode = 0;
-                status.Message = "User already exist";
+                status.Message = "User already exists";
                 return Ok(status);
             }
 
@@ -161,7 +160,7 @@ namespace Authentication_And_Authorization.Controllers
                 Name = registration.Name
             };
 
-            //create a new user
+            // Create a new user
             var result = await _userManager.CreateAsync(user, registration.Password);
             if (!result.Succeeded)
             {
@@ -170,8 +169,8 @@ namespace Authentication_And_Authorization.Controllers
                 return Ok(status);
             }
 
-            //add roles here
-            // for admin registration we have to replace userRoles.Admin from userRoles.user
+            // Add roles here
+            // For admin registration, we have to replace userRoles.Admin with userRoles.user
             if (!await _roleManager.RoleExistsAsync(UserRoles.User))
                 await _roleManager.CreateAsync(new IdentityRole(UserRoles.User));
             if (await _roleManager.RoleExistsAsync(UserRoles.User))
@@ -183,56 +182,57 @@ namespace Authentication_And_Authorization.Controllers
             return Ok(status);
         }
 
+        // Uncomment and fix this method if needed
+        /*
         [HttpPost]
-        //public async Task<IActionResult> RegistrationAdmin([FromBody] Registration registration)
-        //{
-        //    var status = new Status();
-        //    if (!ModelState.IsValid)
-        //    {
-        //        status.StatusCode = 0;
-        //        status.Message = "Please fill all required fields";
-        //        return Ok(status);
-        //    }
+        public async Task<IActionResult> RegistrationAdmin([FromBody] Registration registration)
+        {
+            var status = new Status();
+            if (!ModelState.IsValid)
+            {
+                status.StatusCode = 0;
+                status.Message = "Please fill all required fields";
+                return Ok(status);
+            }
 
-        //    //check of user exist
-        //    var userExist = await _userManager.FindByNameAsync(registration.Username);
-        //    if (userExist != null)
-        //    {
-        //        status.StatusCode = 0;
-        //        status.Message = "User already exist";
-        //        return Ok(status);
-        //    }
+            // Check if user exists
+            var userExist = await _userManager.FindByNameAsync(registration.Username);
+            if (userExist != null)
+            {
+                status.StatusCode = 0;
+                status.Message = "User already exists";
+                return Ok(status);
+            }
 
-        //    var user = new ApplicationUser()
-        //    {
-        //        UserName = registration.Username,
-        //        SecurityStamp = Guid.NewGuid().ToString(),
-        //        Email = registration.Email,
-        //        Name = registration.Name
-        //    };
+            var user = new ApplicationUser()
+            {
+                UserName = registration.Username,
+                SecurityStamp = Guid.NewGuid().ToString(),
+                Email = registration.Email,
+                Name = registration.Name
+            };
 
-        //    //create a new user
-        //    var result = await _userManager.CreateAsync(user, registration.Password);
-        //    if (!result.Succeeded)
-        //    {
-        //        status.StatusCode = 1;
-        //        status.Message = "User Successfully created";
-        //        return Ok(status);
-        //    }
+            // Create a new user
+            var result = await _userManager.CreateAsync(user, registration.Password);
+            if (!result.Succeeded)
+            {
+                status.StatusCode = 0;
+                status.Message = "User Creation Failed";
+                return Ok(status);
+            }
 
-        //    //add roles here
-        //    // for admin registration we have to replace userRoles.Admin from userRoles.user
-        //    if (!await _roleManager.RoleExistsAsync(UserRoles.Admin))
-        //        await _roleManager.CreateAsync(new IdentityRole(UserRoles.Admin));
-        //    if (await _roleManager.RoleExistsAsync(UserRoles.Admin))
-        //    {
-        //        await _userManager.AddToRoleAsync(user, UserRoles.Admin);
-        //    }
-        //    status.StatusCode = 1;
-        //    status.Message = "Successfully registered!";
-        //    return Ok(status);
-        //}
+            // Add roles here
+            // For admin registration, we have to replace userRoles.Admin with userRoles.user
+            if (!await _roleManager.RoleExistsAsync(UserRoles.Admin))
+                await _roleManager.CreateAsync(new IdentityRole(UserRoles.Admin));
+            if (await _roleManager.RoleExistsAsync(UserRoles.Admin))
+            {
+                await _userManager.AddToRoleAsync(user, UserRoles.Admin);
+            }
+            status.StatusCode = 1;
+            status.Message = "Successfully registered!";
+            return Ok(status);
+        }
+        */
     }
 }
-
-
