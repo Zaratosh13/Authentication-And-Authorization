@@ -9,6 +9,10 @@ namespace Authentication_And_Authorization.Models.DTO
 {
     public class Registration
     {
+
+        [Required]
+        public string? Name { get; set; }
+
         [Required]
         public string? Username { get; set; }
 
